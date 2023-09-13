@@ -53,6 +53,8 @@ public class DataTransferTaskRunner implements Callable<Void> {
 
                         current.transfer();
 
+                        log.info("{} is completed.", current.getClass().getSimpleName());
+
                     } catch (Exception ex) {
                         log.warn(String.format("Error occurred when transferring, reason:%s", ex.getMessage()));
                         current.fail(ex);

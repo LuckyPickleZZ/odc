@@ -18,7 +18,6 @@ package com.oceanbase.odc.service.datatransfer.task.obloaderdumper;
 import static com.oceanbase.odc.service.datatransfer.model.DataTransferConstants.LOG_PATH_NAME;
 
 import java.util.Collection;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -30,8 +29,8 @@ import org.apache.logging.log4j.ThreadContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.oceanbase.odc.core.shared.Verify;
-import com.oceanbase.odc.service.datatransfer.task.TransferTask;
 import com.oceanbase.odc.service.datatransfer.task.common.GeneralDataTransferTask;
+import com.oceanbase.odc.service.datatransfer.task.obloaderdumper.model.DataTransferTaskContext;
 import com.oceanbase.odc.service.flow.task.model.DataTransferTaskResult;
 import com.oceanbase.tools.loaddump.common.enums.DataFormat;
 import com.oceanbase.tools.loaddump.common.enums.ObjectType;
@@ -52,16 +51,16 @@ import lombok.extern.slf4j.Slf4j;
  * @since ODC_release_3.4.0
  */
 @Slf4j
-public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> extends GeneralDataTransferTask
-        implements Callable<DataTransferTaskResult> {
+public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> extends GeneralDataTransferTask {
     protected final T parameter;
-    private final boolean transferData;
+    protected final boolean transferData;
     private final boolean transferSchema;
     private final long sleepInterval;
     private volatile CountDownLatch contextLatch;
     private volatile DataTransferTaskContext context;
     @Setter
     protected boolean mergeSchemaFiles;
+    private DataTransferTaskResult result;
 
     public BaseObLoaderDumperTransferTask(@NonNull T parameter, boolean transferData, boolean transferSchema) {
         this.parameter = parameter;
@@ -114,7 +113,7 @@ public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> ex
     }
 
     @Override
-    public DataTransferTaskResult call() throws Exception {
+    public void transfer() throws Exception {
         if (contextLatch == null) {
             throw new NullPointerException("Context latch is null");
         }
@@ -123,6 +122,31 @@ public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> ex
         } else if (context == null) {
             throw new NullPointerException("Data transfer task context is null");
         }
+        try {
+            doTransfer();
+        } finally {
+            if (context.schemaContext != null) {
+                context.schemaContext.shutdownNow();
+            }
+            if (context.dataContext != null) {
+                context.dataContext.shutdownNow();
+            }
+        }
+    }
+
+    @Override
+    public void destroyQuietly() {
+        try {
+            afterHandle(parameter, context, result);
+        } catch (Exception e) {
+            log.warn("Error occurred when after handle ob-loader-dumper task, error:" + e.getMessage());
+        }
+    }
+
+    protected abstract DataTransferTaskResult doTransfer() throws Exception;
+
+    @Override
+    public DataTransferTaskResult call() throws Exception {
         try {
             String fileSuffix = parameter.getFileSuffix();
             if (transferSchema) {
@@ -148,15 +172,6 @@ public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> ex
             DataTransferTaskResult result = DataTransferTaskResult.of(context);
             afterHandle(parameter, context, result);
             return result;
-        } catch (Exception e) {
-            log.warn("Failed to execute data transfer task", e);
-            if (context.schemaContext != null) {
-                context.schemaContext.shutdownNow();
-            }
-            if (context.dataContext != null) {
-                context.dataContext.shutdownNow();
-            }
-            throw e;
         }
     }
 
@@ -168,7 +183,7 @@ public abstract class BaseObLoaderDumperTransferTask<T extends BaseParameter> ex
             DataTransferTaskResult result) throws Exception;
 
     @SuppressWarnings("all")
-    private void syncWaitFinished(@NonNull TaskContext context) throws InterruptedException {
+    protected void syncWaitFinished(@NonNull TaskContext context) throws InterruptedException {
         while (!Thread.currentThread().isInterrupted()) {
             if (context.isAllTasksSuccessed()) {
                 shutdownContext(context);

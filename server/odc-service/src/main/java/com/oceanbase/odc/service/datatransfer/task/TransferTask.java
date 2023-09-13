@@ -23,9 +23,9 @@ import com.oceanbase.tools.loaddump.common.model.ObjectStatus;
 
 public interface TransferTask {
 
-    void init();
+    void init() throws Exception;
 
-    void transfer();
+    void transfer() throws Exception;
 
     void destroyQuietly();
 

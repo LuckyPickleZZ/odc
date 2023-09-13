@@ -33,6 +33,7 @@ import com.oceanbase.odc.service.datatransfer.DataTransferAdapter;
 import com.oceanbase.odc.service.datatransfer.dumper.DumperOutput;
 import com.oceanbase.odc.service.datatransfer.dumper.SchemaMergeOperator;
 import com.oceanbase.odc.service.datatransfer.model.DataTransferScope;
+import com.oceanbase.odc.service.datatransfer.task.obloaderdumper.model.DataTransferTaskContext;
 import com.oceanbase.odc.service.flow.task.model.DataTransferTaskResult;
 import com.oceanbase.tools.loaddump.client.DumpClient;
 import com.oceanbase.tools.loaddump.common.enums.ServerMode;
@@ -54,16 +55,15 @@ import lombok.extern.slf4j.Slf4j;
 public class ObLoaderDumperExportTask extends BaseObLoaderDumperTransferTask<DumpParameter> {
     private static final Set<String> OUTPUT_FILTER_FILES = new HashSet<>();
 
-    private final DumpClient dumpClient;
+    private DumpClient dumpClient;
     private final DataTransferAdapter transferAdapter;
-    //private final DataTransferScope scope;
+    // private final DataTransferScope scope;
 
     public ObLoaderDumperExportTask(@NonNull DumpParameter parameter,
             boolean transferData, boolean transferSchema,
             @NonNull DataTransferAdapter transferAdapter) throws Exception {
         super(parameter, transferData, transferSchema);
         this.transferAdapter = transferAdapter;
-        this.dumpClient = new DumpClient.Builder(parameter).build();
     }
 
     static {
@@ -71,8 +71,19 @@ public class ObLoaderDumperExportTask extends BaseObLoaderDumperTransferTask<Dum
     }
 
     @Override
-    protected TaskContext startTransferData(DumpParameter parameter) throws Exception {
+    protected DataTransferTaskResult doTransfer() throws Exception {
         ThreadContext.put(LOG_PATH_NAME, parameter.getLogsPath());
+        TaskContext taskContext;
+        if (transferData) {
+            context = dumpClient.dumpRecord();
+        } else {
+            context = dumpClient.dumpSchema();
+        }
+        return DataTransferTaskResult.of(context);
+    }
+
+    @Override
+    protected TaskContext startTransferData(DumpParameter parameter) throws Exception {
         return dumpClient.dumpRecord();
     }
 
@@ -119,18 +130,8 @@ public class ObLoaderDumperExportTask extends BaseObLoaderDumperTransferTask<Dum
     }
 
     @Override
-    public void init() {
-
-    }
-
-    @Override
-    public void transfer() {
-
-    }
-
-    @Override
-    public void destroyQuietly() {
-
+    public void init() throws Exception {
+        this.dumpClient = new DumpClient.Builder(parameter).build();
     }
 
     @Override
@@ -145,7 +146,7 @@ public class ObLoaderDumperExportTask extends BaseObLoaderDumperTransferTask<Dum
 
     @Override
     public DataTransferScope scope() {
-        //return this.scope;
+        // return this.scope;
         return null;
     }
 }

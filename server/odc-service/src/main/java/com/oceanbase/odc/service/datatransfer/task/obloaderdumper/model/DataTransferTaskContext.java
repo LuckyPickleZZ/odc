@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.oceanbase.odc.service.datatransfer.task.obloaderdumper;
+package com.oceanbase.odc.service.datatransfer.task.obloaderdumper.model;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,10 +48,10 @@ public class DataTransferTaskContext implements Future<DataTransferTaskResult> {
 
     @Getter(AccessLevel.NONE)
     private final Future<DataTransferTaskResult> handle;
-    volatile TaskContext dataContext;
-    volatile TaskContext schemaContext;
+    public volatile TaskContext dataContext;
+    public volatile TaskContext schemaContext;
 
-    DataTransferTaskContext(@NonNull Future<DataTransferTaskResult> handle) {
+    public DataTransferTaskContext(@NonNull Future<DataTransferTaskResult> handle) {
         this.handle = handle;
     }
 

@@ -28,6 +28,7 @@ import org.apache.logging.log4j.ThreadContext;
 
 import com.oceanbase.odc.core.shared.Verify;
 import com.oceanbase.odc.service.datatransfer.model.DataTransferScope;
+import com.oceanbase.odc.service.datatransfer.task.obloaderdumper.model.DataTransferTaskContext;
 import com.oceanbase.odc.service.flow.task.model.DataTransferTaskResult;
 import com.oceanbase.tools.loaddump.client.LoadClient;
 import com.oceanbase.tools.loaddump.common.enums.DataFormat;
@@ -104,11 +105,6 @@ public class ObLoaderDumperImportTask extends BaseObLoaderDumperTransferTask<Loa
 
     @Override
     public void init() {
-
-    }
-
-    @Override
-    public void transfer() {
 
     }
 
